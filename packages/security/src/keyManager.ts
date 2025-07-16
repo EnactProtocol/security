@@ -24,11 +24,11 @@ export class KeyManager {
 
   // File paths
   private static getPublicKeyPath(keyId: string): string {
-    return path.join(this.TRUSTED_KEYS_DIR, `${keyId}.pub`);
+    return path.join(this.TRUSTED_KEYS_DIR, `${keyId}-public.pem`);
   }
 
   private static getPrivateKeyPath(keyId: string): string {
-    return path.join(this.PRIVATE_KEYS_DIR, `${keyId}.key`);
+    return path.join(this.PRIVATE_KEYS_DIR, `${keyId}-private.pem`);
   }
 
   private static getMetadataPath(keyId: string): string {
@@ -52,17 +52,19 @@ export class KeyManager {
     this.ensureDirectories();
 
     try {
-      // Store public key in trusted-keys directory
+      // Store public key in PEM format in trusted-keys directory
+      const publicKeyPem = CryptoUtils.hexToPem(keyPair.publicKey, 'PUBLIC');
       fs.writeFileSync(
         this.getPublicKeyPath(keyId), 
-        keyPair.publicKey, 
+        publicKeyPem, 
         { mode: 0o644 }
       );
 
-      // Store private key in secure location with restrictive permissions
+      // Store private key in PEM format in secure location with restrictive permissions
+      const privateKeyPem = CryptoUtils.hexToPem(keyPair.privateKey, 'PRIVATE');
       fs.writeFileSync(
         this.getPrivateKeyPath(keyId), 
-        keyPair.privateKey, 
+        privateKeyPem, 
         { mode: 0o600 }
       );
 
@@ -96,8 +98,12 @@ export class KeyManager {
         return undefined;
       }
 
-      const publicKey = fs.readFileSync(publicKeyPath, 'utf8').trim();
-      const privateKey = fs.readFileSync(privateKeyPath, 'utf8').trim();
+      const publicKeyPem = fs.readFileSync(publicKeyPath, 'utf8').trim();
+      const privateKeyPem = fs.readFileSync(privateKeyPath, 'utf8').trim();
+
+      // Convert PEM back to hex for internal use
+      const publicKey = CryptoUtils.pemToHex(publicKeyPem, 'PUBLIC');
+      const privateKey = CryptoUtils.pemToHex(privateKeyPem, 'PRIVATE');
 
       return { privateKey, publicKey };
     } catch (error) {
@@ -114,7 +120,9 @@ export class KeyManager {
         return undefined;
       }
 
-      return fs.readFileSync(publicKeyPath, 'utf8').trim();
+      const publicKeyPem = fs.readFileSync(publicKeyPath, 'utf8').trim();
+      // Convert PEM back to hex for internal use
+      return CryptoUtils.pemToHex(publicKeyPem, 'PUBLIC');
     } catch (error) {
       console.warn(`Failed to read public key '${keyId}': ${error instanceof Error ? error.message : String(error)}`);
       return undefined;
@@ -180,8 +188,8 @@ export class KeyManager {
       this.ensureDirectories();
       
       const publicFiles = fs.readdirSync(this.TRUSTED_KEYS_DIR)
-        .filter(file => file.endsWith('.pub'))
-        .map(file => file.replace('.pub', ''));
+        .filter(file => file.endsWith('-public.pem'))
+        .map(file => file.replace('-public.pem', ''));
 
       // Only return keys that have both public and private key files
       return publicFiles.filter(keyId => this.keyExists(keyId));
@@ -197,10 +205,34 @@ export class KeyManager {
       
       // Return all public keys (including those without private keys)
       return fs.readdirSync(this.TRUSTED_KEYS_DIR)
-        .filter(file => file.endsWith('.pub'))
-        .map(file => file.replace('.pub', ''));
+        .filter(file => file.endsWith('-public.pem'))
+        .map(file => file.replace('-public.pem', ''));
     } catch (error) {
       console.warn(`Failed to list trusted keys: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
+    }
+  }
+
+  static getAllTrustedPublicKeys(): string[] {
+    try {
+      this.ensureDirectories();
+      
+      // Return all public key values from trusted keys directory
+      return fs.readdirSync(this.TRUSTED_KEYS_DIR)
+        .filter(file => file.endsWith('-public.pem'))
+        .map(file => {
+          try {
+            const publicKeyPem = fs.readFileSync(path.join(this.TRUSTED_KEYS_DIR, file), 'utf8').trim();
+            // Convert PEM back to hex for internal use
+            return CryptoUtils.pemToHex(publicKeyPem, 'PUBLIC');
+          } catch (error) {
+            console.warn(`Failed to read trusted key file ${file}: ${error instanceof Error ? error.message : String(error)}`);
+            return null;
+          }
+        })
+        .filter(key => key !== null) as string[];
+    } catch (error) {
+      console.warn(`Failed to get all trusted public keys: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
@@ -224,10 +256,11 @@ export class KeyManager {
     }
 
     try {
-      // Store public key
+      // Store public key in PEM format
+      const publicKeyPem = CryptoUtils.hexToPem(publicKey, 'PUBLIC');
       fs.writeFileSync(
         this.getPublicKeyPath(keyId), 
-        publicKey, 
+        publicKeyPem, 
         { mode: 0o644 }
       );
 

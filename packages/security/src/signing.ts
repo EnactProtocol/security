@@ -2,6 +2,7 @@ import { CryptoUtils } from './crypto';
 import { FieldSelector, EnactFieldSelector, GenericFieldSelector } from './fieldConfig';
 import type { EnactDocument, SigningOptions, Signature, SecurityConfig } from './types';
 import { DEFAULT_SECURITY_CONFIG } from './types';
+import { KeyManager } from './keyManager';
 
 export class SigningService {
   static signDocument(
@@ -79,14 +80,23 @@ export class SigningService {
     const documentString = JSON.stringify(canonicalDocument);
     const messageHash = CryptoUtils.hash(documentString);
     
-    // All signatures must be valid
-    return signatures.every(sig => 
-      CryptoUtils.verify(
+    // Get all trusted public keys from KeyManager
+    const trustedPublicKeys = KeyManager.getAllTrustedPublicKeys();
+    
+    // All signatures must be valid and from trusted keys
+    return signatures.every(sig => {
+      // First check if the public key is trusted
+      if (!trustedPublicKeys.includes(sig.publicKey)) {
+        return false;
+      }
+      
+      // Then verify the signature
+      return CryptoUtils.verify(
         sig.publicKey,
         messageHash,
         sig.signature
-      )
-    );
+      );
+    });
   }
 
   static createDocumentHash(
