@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enact Protocol JSON Signing & Verification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .section h2 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .debug {
+            background: #e9ecef;
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            background: #e9ecef;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            margin-right: 2px;
+        }
+        .tab.active {
+            background: #007bff;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .key-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Enact Protocol JSON Signing & Verification Tool</h1>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('keygen')">1. Generate Keys</button>
+            <button class="tab" onclick="switchTab('signing')">2. Sign Tool</button>
+            <button class="tab" onclick="switchTab('verification')">3. Verify Signature</button>
+            <button class="tab" onclick="switchTab('debug')">4. Debug</button>
+        </div>
+
+        <!-- Key Generation Tab -->
+        <div id="keygen" class="tab-content active">
+            <div class="section">
+                <h2>Generate ECDSA P-256 Key Pair</h2>
+                <button onclick="generateKeyPair()">Generate New Key Pair</button>
+                <div id="keyOutput"></div>
+            </div>
+        </div>
+
+        <!-- Signing Tab -->
+        <div id="signing" class="tab-content">
+            <div class="section">
+                <h2>Sign Tool Definition</h2>
+                <div class="grid">
+                    <div>
+                        <label><strong>Tool Definition JSON:</strong></label>
+                        <textarea id="toolDefinition" placeholder="Enter your tool definition JSON here...">
+{
+  "name": "kgroves88/hello-world",
+  "description": "A simple greeting tool that says hello to a person",
+  "command": "echo 'Hello, ${name}! Welcome to Enact Protocol.'",
+  "enact": "1.0.0",
+  "version": "1.0.0",
+  "timeout": "10s",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Name of the person to greet",
+        "default": "World"
+      }
+    },
+    "required": ["name"]
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "idempotentHint": true,
+    "destructiveHint": false,
+    "openWorldHint": false
+  }
+}
+                        </textarea>
+                    </div>
+                    <div>
+                        <label><strong>Private Key (Base64):</strong></label>
+                        <textarea id="privateKeyInput" placeholder="Paste your private key here..."></textarea>
+                    </div>
+                </div>
+                <button onclick="signTool()">Sign Tool</button>
+                <div id="signatureOutput"></div>
+            </div>
+        </div>
+
+        <!-- Verification Tab -->
+        <div id="verification" class="tab-content">
+            <div class="section">
+                <h2>Verify Tool Signature</h2>
+                <div class="grid">
+                    <div>
+                        <label><strong>Tool Definition JSON:</strong></label>
+                        <textarea id="verifyToolDefinition" placeholder="Enter tool definition to verify..."></textarea>
+                        <label><strong>Signature (Base64):</strong></label>
+                        <textarea id="signatureInput" placeholder="Enter signature to verify..."></textarea>
+                    </div>
+                    <div>
+                        <label><strong>Public Key (Base64):</strong></label>
+                        <textarea id="publicKeyInput" placeholder="Paste public key here..."></textarea>
+                    </div>
+                </div>
+                <button onclick="verifySignature()">Verify Signature</button>
+                <div id="verificationOutput"></div>
+            </div>
+        </div>
+
+        <!-- Debug Tab -->
+        <div id="debug" class="tab-content">
+            <div class="section">
+                <h2>Debug Canonical JSON Generation</h2>
+                <label><strong>Tool Definition JSON:</strong></label>
+                <textarea id="debugToolDefinition" placeholder="Enter tool definition to debug..."></textarea>
+                <button onclick="debugCanonicalJson()">Generate Canonical JSON</button>
+                <div id="debugOutput"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPrivateKey = null;
+        let currentPublicKey = null;
+
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to selected tab
+            event.target.classList.add('active');
+        }
+
+        async function generateKeyPair() {
+            try {
+                // Generate ECDSA P-256 key pair
+                const keyPair = await crypto.subtle.generateKey(
+                    {
+                        name: "ECDSA",
+                        namedCurve: "P-256"
+                    },
+                    true, // extractable
+                    ["sign", "verify"]
+                );
+
+                // Export keys
+                const privateKeyArrayBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+                const publicKeyArrayBuffer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+
+                // Convert to Base64
+                const privateKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(privateKeyArrayBuffer)));
+                const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyArrayBuffer)));
+
+                // Store for later use
+                currentPrivateKey = keyPair.privateKey;
+                currentPublicKey = keyPair.publicKey;
+
+                // Display keys
+                document.getElementById('keyOutput').innerHTML = `
+                    <div class="success">
+                        <strong>✅ Key Pair Generated Successfully!</strong>
+                    </div>
+                    <div>
+                        <strong>Private Key (Base64 PKCS8):</strong>
+                        <div class="key-display">${privateKeyBase64}</div>
+                    </div>
+                    <div>
+                        <strong>Public Key (Base64 SPKI):</strong>
+                        <div class="key-display">${publicKeyBase64}</div>
+                    </div>
+                `;
+
+                // Auto-populate other tabs
+                document.getElementById('privateKeyInput').value = privateKeyBase64;
+                document.getElementById('publicKeyInput').value = publicKeyBase64;
+
+            } catch (error) {
+                document.getElementById('keyOutput').innerHTML = `
+                    <div class="error">
+                        <strong>❌ Key Generation Failed:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function isEmptyOrOnlyEmptyObjects(value) {
+            if (value === null || value === undefined) return true;
+            if (Array.isArray(value)) {
+                return value.length === 0 || value.every(item => 
+                    typeof item === 'object' && item !== null && Object.keys(item).length === 0
+                );
+            }
+            if (typeof value === 'object' && value !== null) {
+                return Object.keys(value).length === 0;
+            }
+            return false;
+        }
+
+        function sortObjectKeys(obj) {
+            if (obj === null || obj === undefined) return obj;
+            if (Array.isArray(obj)) {
+                return obj.map(sortObjectKeys);
+            }
+            if (typeof obj === 'object' && obj !== null) {
+                const sorted = {};
+                const keys = Object.keys(obj).sort();
+                for (const key of keys) {
+                    sorted[key] = sortObjectKeys(obj[key]);
+                }
+                return sorted;
+            }
+            return obj;
+        }
+
+        function createCanonicalToolDefinition(tool) {
+            const canonical = {};
+            
+            // Core required fields - only add if not empty
+            if (tool.name && !isEmptyOrOnlyEmptyObjects(tool.name)) {
+                canonical.name = tool.name;
+            }
+            if (tool.description && !isEmptyOrOnlyEmptyObjects(tool.description)) {
+                canonical.description = tool.description;
+            }
+            if (tool.command && !isEmptyOrOnlyEmptyObjects(tool.command)) {
+                canonical.command = tool.command;
+            }
+            
+            // Protocol version
+            const enactValue = tool.enact || tool.protocol_version;
+            if (enactValue && !isEmptyOrOnlyEmptyObjects(enactValue)) {
+                canonical.enact = enactValue;
+            }
+            
+            // Tool version
+            if (tool.version && !isEmptyOrOnlyEmptyObjects(tool.version)) {
+                canonical.version = tool.version;
+            }
+            
+            // Container/execution environment
+            if (tool.from && !isEmptyOrOnlyEmptyObjects(tool.from)) {
+                canonical.from = tool.from;
+            }
+            
+            // Execution timeout
+            if (tool.timeout && !isEmptyOrOnlyEmptyObjects(tool.timeout)) {
+                canonical.timeout = tool.timeout;
+            }
+            
+            // Input schema
+            const inputSchemaValue = tool.input_schema || tool.inputSchema;
+            if (inputSchemaValue && !isEmptyOrOnlyEmptyObjects(inputSchemaValue)) {
+                canonical.inputSchema = inputSchemaValue;
+            }
+            
+            // Environment variables
+            const envValue = tool.env_vars || tool.env;
+            if (envValue && !isEmptyOrOnlyEmptyObjects(envValue)) {
+                canonical.env = envValue;
+            }
+            
+            // Execution metadata/annotations
+            if (tool.annotations && !isEmptyOrOnlyEmptyObjects(tool.annotations)) {
+                canonical.annotations = tool.annotations;
+            }
+
+            return canonical;
+        }
+
+        function createCanonicalJson(tool, withDebug = false) {
+            const debugLog = [];
+            
+            if (withDebug) {
+                debugLog.push('🔍 DEBUG: Starting canonical JSON creation');
+                debugLog.push('🔍 DEBUG: Input tool object:');
+                debugLog.push(JSON.stringify(tool, null, 2));
+            }
+            
+            // Step 1: Create canonical representation
+            const canonical = createCanonicalToolDefinition(tool);
+            
+            if (withDebug) {
+                debugLog.push('🔍 DEBUG: After createCanonicalToolDefinition:');
+                debugLog.push(JSON.stringify(canonical, null, 2));
+            }
+            
+            // Step 2: Extra cleaning step
+            const cleanedCanonical = {};
+            for (const [key, value] of Object.entries(canonical)) {
+                if (withDebug) {
+                    debugLog.push(`🔍 DEBUG: Checking field '${key}': isEmpty=${isEmptyOrOnlyEmptyObjects(value)}`);
+                }
+                
+                if (!isEmptyOrOnlyEmptyObjects(value)) {
+                    cleanedCanonical[key] = sortObjectKeys(value);
+                    if (withDebug) {
+                        debugLog.push(`✅ DEBUG: Including field '${key}'`);
+                    }
+                } else {
+                    if (withDebug) {
+                        debugLog.push(`❌ DEBUG: Excluding field '${key}' (empty)`);
+                    }
+                }
+            }
+            
+            if (withDebug) {
+                debugLog.push('🔍 DEBUG: Final cleaned canonical:');
+                debugLog.push(JSON.stringify(cleanedCanonical, null, 2));
+            }
+            
+            // Step 3: Create JSON
+            const canonicalJson = JSON.stringify(cleanedCanonical);
+            
+            if (withDebug) {
+                debugLog.push('🔍 DEBUG: Canonical JSON string:');
+                debugLog.push(canonicalJson);
+                debugLog.push(`🔍 DEBUG: Canonical JSON length: ${canonicalJson.length}`);
+            }
+            
+            return withDebug ? { canonicalJson, debugLog } : canonicalJson;
+        }
+
+        async function importPrivateKeyFromBase64(privateKeyBase64) {
+            const binaryDerString = atob(privateKeyBase64);
+            const binaryDerBuffer = new ArrayBuffer(binaryDerString.length);
+            const binaryDerView = new Uint8Array(binaryDerBuffer);
+            
+            for (let i = 0; i < binaryDerString.length; i++) {
+                binaryDerView[i] = binaryDerString.charCodeAt(i);
+            }
+            
+            return await crypto.subtle.importKey(
+                "pkcs8",
+                binaryDerBuffer,
+                {
+                    name: "ECDSA",
+                    namedCurve: "P-256"
+                },
+                false,
+                ["sign"]
+            );
+        }
+
+        async function importPublicKeyFromBase64(publicKeyBase64) {
+            const binaryDerString = atob(publicKeyBase64);
+            const binaryDerBuffer = new ArrayBuffer(binaryDerString.length);
+            const binaryDerView = new Uint8Array(binaryDerBuffer);
+            
+            for (let i = 0; i < binaryDerString.length; i++) {
+                binaryDerView[i] = binaryDerString.charCodeAt(i);
+            }
+            
+            return await crypto.subtle.importKey(
+                "spki",
+                binaryDerBuffer,
+                {
+                    name: "ECDSA",
+                    namedCurve: "P-256"
+                },
+                false,
+                ["verify"]
+            );
+        }
+
+        async function signTool() {
+            try {
+                const toolDefinitionText = document.getElementById('toolDefinition').value;
+                const privateKeyBase64 = document.getElementById('privateKeyInput').value;
+
+                if (!toolDefinitionText) {
+                    throw new Error('Tool definition is required');
+                }
+                if (!privateKeyBase64) {
+                    throw new Error('Private key is required');
+                }
+
+                // Parse tool definition
+                const toolDefinition = JSON.parse(toolDefinitionText);
+
+                // Import private key
+                const privateKey = await importPrivateKeyFromBase64(privateKeyBase64);
+
+                // Create canonical JSON with debug info
+                const { canonicalJson, debugLog } = createCanonicalJson(toolDefinition, true);
+
+                // Hash the canonical JSON
+                const encoder = new TextEncoder();
+                const data = encoder.encode(canonicalJson);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const toolHash = new Uint8Array(hashBuffer);
+
+                // Sign the hash
+                const signature = await crypto.subtle.sign(
+                    { name: "ECDSA", hash: { name: "SHA-256" } },
+                    privateKey,
+                    toolHash
+                );
+
+                const signatureBytes = new Uint8Array(signature);
+                const signatureB64 = btoa(String.fromCharCode(...signatureBytes));
+
+                // Create signature metadata
+                const signatureMetadata = {
+                    signature: signatureB64,
+                    signer: "user-" + Date.now(),
+                    algorithm: "ecdsa-p256-sha256",
+                    created: new Date().toISOString()
+                };
+
+                // Display results
+                document.getElementById('signatureOutput').innerHTML = `
+                    <div class="success">
+                        <strong>✅ Tool Signed Successfully!</strong>
+                    </div>
+                    <div>
+                        <strong>Canonical JSON:</strong>
+                        <div class="key-display">${canonicalJson}</div>
+                    </div>
+                    <div>
+                        <strong>Signature (Base64):</strong>
+                        <div class="key-display">${signatureB64}</div>
+                    </div>
+                    <div>
+                        <strong>Signature Metadata:</strong>
+                        <div class="key-display">${JSON.stringify(signatureMetadata, null, 2)}</div>
+                    </div>
+                    <div>
+                        <strong>Debug Log:</strong>
+                        <div class="debug">${debugLog.join('\n')}</div>
+                    </div>
+                `;
+
+                // Auto-populate verification tab
+                document.getElementById('verifyToolDefinition').value = toolDefinitionText;
+                document.getElementById('signatureInput').value = signatureB64;
+
+            } catch (error) {
+                document.getElementById('signatureOutput').innerHTML = `
+                    <div class="error">
+                        <strong>❌ Signing Failed:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function verifySignature() {
+            try {
+                const toolDefinitionText = document.getElementById('verifyToolDefinition').value;
+                const signatureBase64 = document.getElementById('signatureInput').value;
+                const publicKeyBase64 = document.getElementById('publicKeyInput').value;
+
+                if (!toolDefinitionText) {
+                    throw new Error('Tool definition is required');
+                }
+                if (!signatureBase64) {
+                    throw new Error('Signature is required');
+                }
+                if (!publicKeyBase64) {
+                    throw new Error('Public key is required');
+                }
+
+                // Parse tool definition
+                const toolDefinition = JSON.parse(toolDefinitionText);
+
+                // Import public key
+                const publicKey = await importPublicKeyFromBase64(publicKeyBase64);
+
+                // Create canonical JSON with debug info
+                const { canonicalJson, debugLog } = createCanonicalJson(toolDefinition, true);
+
+                // Hash the canonical JSON
+                const encoder = new TextEncoder();
+                const data = encoder.encode(canonicalJson);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const toolHash = new Uint8Array(hashBuffer);
+
+                // Convert Base64 signature to bytes
+                const signatureBytes = new Uint8Array(
+                    atob(signatureBase64).split('').map(char => char.charCodeAt(0))
+                );
+
+                // Verify the signature
+                const isValid = await crypto.subtle.verify(
+                    { name: "ECDSA", hash: { name: "SHA-256" } },
+                    publicKey,
+                    signatureBytes,
+                    toolHash
+                );
+
+                // Display results
+                if (isValid) {
+                    document.getElementById('verificationOutput').innerHTML = `
+                        <div class="success">
+                            <strong>✅ Signature is Valid!</strong><br>
+                            The signature was successfully verified with the public key.<br>
+                            The tool data is authentic and has not been tampered with.
+                        </div>
+                        <div>
+                            <strong>Canonical JSON Used:</strong>
+                            <div class="key-display">${canonicalJson}</div>
+                        </div>
+                        <div>
+                            <strong>Verification Debug Log:</strong>
+                            <div class="debug">${debugLog.join('\n')}</div>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('verificationOutput').innerHTML = `
+                        <div class="error">
+                            <strong>❌ Signature is Invalid!</strong><br>
+                            The signature verification failed.<br>
+                            The tool data may have been tampered with or the signature is incorrect.
+                        </div>
+                        <div>
+                            <strong>Canonical JSON Used:</strong>
+                            <div class="key-display">${canonicalJson}</div>
+                        </div>
+                        <div>
+                            <strong>Verification Debug Log:</strong>
+                            <div class="debug">${debugLog.join('\n')}</div>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                document.getElementById('verificationOutput').innerHTML = `
+                    <div class="error">
+                        <strong>❌ Verification Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function debugCanonicalJson() {
+            try {
+                const toolDefinitionText = document.getElementById('debugToolDefinition').value;
+                
+                if (!toolDefinitionText) {
+                    throw new Error('Tool definition is required');
+                }
+
+                // Parse tool definition
+                const toolDefinition = JSON.parse(toolDefinitionText);
+
+                // Create canonical JSON with debug info
+                const { canonicalJson, debugLog } = createCanonicalJson(toolDefinition, true);
+
+                // Display results
+                document.getElementById('debugOutput').innerHTML = `
+                    <div class="success">
+                        <strong>✅ Canonical JSON Generated Successfully!</strong>
+                    </div>
+                    <div>
+                        <strong>Canonical JSON:</strong>
+                        <div class="key-display">${canonicalJson}</div>
+                    </div>
+                    <div>
+                        <strong>Generation Debug Log:</strong>
+                        <div class="debug">${debugLog.join('\n')}</div>
+                    </div>
+                `;
+
+            } catch (error) {
+                document.getElementById('debugOutput').innerHTML = `
+                    <div class="error">
+                        <strong>❌ Debug Failed:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize with sample data
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-populate debug tab with sample data
+            document.getElementById('debugToolDefinition').value = document.getElementById('toolDefinition').value;
+        });
+    </script>
+</body>
+</html>

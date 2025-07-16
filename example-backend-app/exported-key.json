@@ -1,0 +1,9 @@
+{
+  "metadata": {
+    "keyId": "demo-signing-key",
+    "created": "2025-07-14T15:57:44.770Z",
+    "algorithm": "secp256k1",
+    "description": "Demo key for testing"
+  },
+  "publicKey": "03b93627d99fa73178e4805b3897cc9c11abd03ef9217ff462b27a62acd0edc268"
+}

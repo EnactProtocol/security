@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enact Security Web Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main {
+            padding: 40px;
+        }
+        
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8fafc;
+            border-radius: 15px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .demo-section h2 {
+            color: #1e293b;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .output {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Consolas, monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .status.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        .status.info {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main {
+                padding: 20px;
+            }
+        }
+        
+        .field-selector {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .info-box {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .info-box h3 {
+            color: #0369a1;
+            margin-bottom: 8px;
+        }
+        
+        .badge {
+            background: #4f46e5;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Enact Security Web Demo</h1>
+            <p>Interactive demonstration of @enactprotocol/security-web package</p>
+            <div style="margin-top: 15px;">
+                <span class="badge">v0.1.0</span>
+                <span class="badge">npm installed</span>
+                <span class="badge">browser crypto</span>
+            </div>
+        </div>
+        
+        <div class="main">
+            <!-- Key Generation Section -->
+            <div class="demo-section">
+                <h2>🔑 Key Generation</h2>
+                <p>Generate a cryptographic key pair for signing Enact documents.</p>
+                
+                <button id="generateKeys">Generate New Key Pair</button>
+                <button id="loadSampleKeys">Load Sample Keys</button>
+                
+                <div class="grid">
+                    <div class="form-group">
+                        <label for="privateKey">Private Key (Hex)</label>
+                        <textarea id="privateKey" placeholder="Private key will appear here..." readonly></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="publicKey">Public Key (Hex)</label>
+                        <textarea id="publicKey" placeholder="Public key will appear here..." readonly></textarea>
+                    </div>
+                </div>
+                
+                <div id="keyStatus"></div>
+            </div>
+            
+            <!-- Tool Definition Section -->
+            <div class="demo-section">
+                <h2>🛠️ Enact Tool Definition</h2>
+                <p>Define an Enact protocol tool with various fields. You can edit this or load a sample.</p>
+                
+                <button id="loadSampleTool">Load Sample Tool</button>
+                <button id="clearTool">Clear Tool</button>
+                
+                <div class="form-group">
+                    <label for="toolJson">Tool Definition (JSON)</label>
+                    <textarea id="toolJson" rows="12" placeholder="Enter your Enact tool definition in JSON format..."></textarea>
+                </div>
+                
+                <div id="toolStatus"></div>
+            </div>
+            
+            <!-- Field Selection Section -->
+            <div class="demo-section">
+                <h2>🎯 Field Selection for Signing</h2>
+                <p>Choose which fields to include in the cryptographic signature.</p>
+                
+                <div class="field-selector">
+                    <h3>Signing Options</h3>
+                    <div class="form-group">
+                        <label>
+                            <input type="radio" name="fieldMode" value="enact" checked>
+                            Enact Protocol Defaults (Security-Critical Fields)
+                        </label>
+                        <small>Signs: annotations, command, description, enact, env, from, inputSchema, name, timeout, version</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>
+                            <input type="radio" name="fieldMode" value="custom">
+                            Custom Field Selection
+                        </label>
+                    </div>
+                    
+                    <div id="customFields" style="display: none;">
+                        <p>Select specific fields to include in signature:</p>
+                        <div class="checkbox-group" id="fieldCheckboxes"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Signing Section -->
+            <div class="demo-section">
+                <h2>✍️ Document Signing</h2>
+                <p>Sign the tool definition using the selected fields and private key.</p>
+                
+                <button id="signDocument">Sign Document</button>
+                <button id="verifySignature">Verify Signature</button>
+                
+                <div class="info-box">
+                    <h3>What happens during signing:</h3>
+                    <ul>
+                        <li>Selected fields are extracted and sorted alphabetically</li>
+                        <li>A canonical JSON representation is created</li>
+                        <li>The JSON is hashed using SHA-256</li>
+                        <li>The hash is signed using secp256k1 ECDSA</li>
+                    </ul>
+                </div>
+                
+                <div class="form-group">
+                    <label for="canonicalOutput">Canonical Document (What Gets Signed)</label>
+                    <div class="output" id="canonicalOutput">Click "Sign Document" to see the canonical representation...</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signatureOutput">Signature Result</label>
+                    <div class="output" id="signatureOutput">Signature will appear here...</div>
+                </div>
+                
+                <div id="signatureStatus"></div>
+            </div>
+            
+            <!-- Cross-Platform Test Section -->
+            <div class="demo-section">
+                <h2>🌐 Cross-Platform Compatibility Test</h2>
+                <p>Test that this frontend signature would work with the backend package.</p>
+                
+                <button id="testCompatibility">Test Cross-Platform Compatibility</button>
+                
+                <div class="info-box">
+                    <h3>This test verifies:</h3>
+                    <ul>
+                        <li>Field selection produces expected canonical JSON</li>
+                        <li>Signature format matches backend expectations</li>
+                        <li>Hash functions produce consistent results</li>
+                        <li>Key derivation is compatible across platforms</li>
+                    </ul>
+                </div>
+                
+                <div class="form-group">
+                    <label for="compatibilityOutput">Compatibility Test Results</label>
+                    <div class="output" id="compatibilityOutput">Click "Test Cross-Platform Compatibility" to run tests...</div>
+                </div>
+                
+                <div id="compatibilityStatus"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="./main.js"></script>
+</body>
+</html>
