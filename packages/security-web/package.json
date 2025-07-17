@@ -1,6 +1,6 @@
 {
   "name": "@enactprotocol/security-web",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Frontend security library for signing enact documents",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
