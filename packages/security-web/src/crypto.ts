@@ -103,11 +103,64 @@ export class CryptoUtils {
       // Extract the actual private key from DER structure
       // Look for the 32-byte private key after the DER prefix
       const privateKeyStart = derHex.indexOf('0420') + 4; // Skip to after the octet string indicator
-      return derHex.substring(privateKeyStart, privateKeyStart + 64); // 32 bytes = 64 hex chars
+      if (privateKeyStart === 3) { // indexOf returned -1, so +4 = 3
+        // Fallback: if no 0420 pattern found, assume it's a raw private key
+        if (derBytes.length === 32) {
+          return derHex;
+        }
+        throw new Error(`Could not find private key in DER structure: ${derHex.substring(0, 50)}...`);
+      }
+      
+      const extractedKey = derHex.substring(privateKeyStart, privateKeyStart + 64); // 32 bytes = 64 hex chars
+      
+      // Validate the extracted key length
+      if (extractedKey.length !== 64) {
+        throw new Error(`Invalid private key length: expected 64 hex chars, got ${extractedKey.length}`);
+      }
+      
+      return extractedKey;
     }
   }
 
   static isPemFormat(key: string): boolean {
     return key.includes('-----BEGIN') && key.includes('-----END');
+  }
+
+  // PEM conversion utilities
+  static hexToPem(hexKey: string, type: 'PUBLIC' | 'PRIVATE'): string {
+    let derKey: string;
+    
+    if (type === 'PUBLIC') {
+      // For public keys, we need to add the DER structure
+      // secp256k1 public key DER prefix: 3056301006072a8648ce3d020106052b8104000a034200
+      const publicKeyBytes = hexToBytes(hexKey);
+      
+      // Create DER structure for secp256k1 public key
+      const derPrefix = '3056301006072a8648ce3d020106052b8104000a034200';
+      derKey = derPrefix + hexKey;
+    } else {
+      // For private keys, we need to add the DER structure
+      // secp256k1 private key DER prefix varies, but we'll use a simple EC private key format
+      const privateKeyBytes = hexToBytes(hexKey);
+      
+      // Create DER structure for secp256k1 private key
+      const derPrefix = '308184020100301306072a8648ce3d020106082a8648ce3d030107046d306b0201010420';
+      const derSuffix = 'a144034200' + CryptoUtils.getPublicKeyFromPrivate(hexKey);
+      derKey = derPrefix + hexKey + derSuffix;
+    }
+    
+    // Convert to base64
+    const derBytes = hexToBytes(derKey);
+    const base64Key = btoa(String.fromCharCode(...derBytes));
+    
+    // Format as PEM
+    const keyType = type === 'PUBLIC' ? 'PUBLIC KEY' : 'PRIVATE KEY';
+    const pemLines = base64Key.match(/.{1,64}/g) || [];
+    
+    return [
+      `-----BEGIN ${keyType}-----`,
+      ...pemLines,
+      `-----END ${keyType}-----`
+    ].join('\n');
   }
 }
