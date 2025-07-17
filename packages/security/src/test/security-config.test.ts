@@ -273,3 +273,124 @@ test('Partial config merges with defaults', () => {
   
   expect(isValid).toBe(true);
 });
+
+test('Can sign and verify only the command field', () => {
+  const keyPair = KeyManager.generateAndStoreKey('command-only-key', 'Key for command-only signing');
+  
+  const documentWithExtraFields: EnactDocument = {
+    name: "test-tool",
+    description: "A test tool that does something",
+    command: "echo 'hello world'",
+    enact: "1.0.0",
+    version: "2.1.0",
+    metadata: { author: "test" },
+    timestamp: Date.now()
+  };
+  
+  // Sign only the command field
+  const signature = SigningService.signDocument(documentWithExtraFields, keyPair.privateKey, {
+    includeFields: ['command']
+  });
+  
+  // Verify with same field specification
+  const isValid = SigningService.verifyDocument(documentWithExtraFields, signature, {
+    includeFields: ['command']
+  });
+  
+  expect(isValid).toBe(true);
+});
+
+test('Command-only signature allows modification of other fields', () => {
+  const keyPair = KeyManager.generateAndStoreKey('command-only-key-2', 'Key for command-only signing');
+  
+  const originalDocument: EnactDocument = {
+    name: "original-tool",
+    description: "Original description",
+    command: "echo 'hello'",
+    enact: "1.0.0"
+  };
+  
+  // Sign only the command field
+  const signature = SigningService.signDocument(originalDocument, keyPair.privateKey, {
+    includeFields: ['command']
+  });
+  
+  // Create modified document with different name and description but same command
+  const modifiedDocument: EnactDocument = {
+    name: "modified-tool",
+    description: "Modified description",
+    command: "echo 'hello'", // Same command
+    enact: "2.0.0" // Different version
+  };
+  
+  // Signature should still be valid because only command was signed
+  const isValid = SigningService.verifyDocument(modifiedDocument, signature, {
+    includeFields: ['command']
+  });
+  
+  expect(isValid).toBe(true);
+});
+
+test('Command-only signature fails when command is modified', () => {
+  const keyPair = KeyManager.generateAndStoreKey('command-only-key-3', 'Key for command-only signing');
+  
+  const originalDocument: EnactDocument = {
+    name: "test-tool",
+    description: "A test tool",
+    command: "echo 'original'",
+    enact: "1.0.0"
+  };
+  
+  // Sign only the command field
+  const signature = SigningService.signDocument(originalDocument, keyPair.privateKey, {
+    includeFields: ['command']
+  });
+  
+  // Create document with modified command
+  const modifiedDocument: EnactDocument = {
+    ...originalDocument,
+    command: "echo 'modified'" // Changed command
+  };
+  
+  // Signature should be invalid because command was changed
+  const isValid = SigningService.verifyDocument(modifiedDocument, signature, {
+    includeFields: ['command']
+  });
+  
+  expect(isValid).toBe(false);
+});
+
+test('Command-only signature vs default signature produce different hashes', () => {
+  // Generate key for potential future use
+  KeyManager.generateAndStoreKey('hash-comparison-key', 'Key for hash comparison');
+  
+  const document: EnactDocument = {
+    name: "test-tool",
+    description: "A test tool",
+    command: "echo 'test'",
+    enact: "1.0.0"
+  };
+  
+  // Get canonical document hash when signing only command
+  const commandOnlyCanonical = SigningService.getCanonicalDocument(document, {
+    includeFields: ['command']
+  });
+  
+  // Get canonical document hash when using enact defaults
+  const defaultCanonical = SigningService.getCanonicalDocument(document, {
+    useEnactDefaults: true
+  });
+  
+  // They should be different
+  expect(commandOnlyCanonical).not.toEqual(defaultCanonical);
+  
+  // Command-only should only contain the command field
+  expect(Object.keys(commandOnlyCanonical)).toEqual(['command']);
+  expect(commandOnlyCanonical.command).toBe("echo 'test'");
+  
+  // Default should contain multiple fields
+  expect(Object.keys(defaultCanonical).length).toBeGreaterThan(1);
+  expect(defaultCanonical).toHaveProperty('command');
+  expect(defaultCanonical).toHaveProperty('name');
+  expect(defaultCanonical).toHaveProperty('description');
+});

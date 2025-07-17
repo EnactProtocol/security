@@ -85,17 +85,37 @@ export class SigningService {
     
     // All signatures must be valid and from trusted keys
     return signatures.every(sig => {
-      // First check if the public key is trusted
-      if (!trustedPublicKeys.includes(sig.publicKey)) {
-        return false;
-      }
+      // Check if we have a valid public key in the signature
+      const hasValidPublicKey = sig.publicKey && 
+                               typeof sig.publicKey === 'string' && 
+                               sig.publicKey.trim() !== '';
       
-      // Then verify the signature
-      return CryptoUtils.verify(
-        sig.publicKey,
-        messageHash,
-        sig.signature
-      );
+      if (hasValidPublicKey && trustedPublicKeys.includes(sig.publicKey)) {
+        // Standard case: signature has valid public key that is trusted
+        return CryptoUtils.verify(
+          sig.publicKey,
+          messageHash,
+          sig.signature
+        );
+      } else {
+        // Fallback: try verifying against ALL trusted public keys
+        // This handles cases where:
+        // - signature.publicKey is null/undefined/empty
+        // - signature.publicKey is invalid/corrupted
+        // - we want to verify against any trusted key
+        return trustedPublicKeys.some(trustedKey => {
+          try {
+            return CryptoUtils.verify(
+              trustedKey,
+              messageHash,
+              sig.signature
+            );
+          } catch {
+            // Continue trying other keys if verification throws an error
+            return false;
+          }
+        });
+      }
     });
   }
 
