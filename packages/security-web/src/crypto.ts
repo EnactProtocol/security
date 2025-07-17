@@ -41,4 +41,73 @@ export class CryptoUtils {
       return false;
     }
   }
+
+  static pemToHex(pemKey: string, type: 'PUBLIC' | 'PRIVATE'): string {
+    const keyType = type === 'PUBLIC' ? 'PUBLIC KEY' : 'PRIVATE KEY';
+    const beginMarker = `-----BEGIN ${keyType}-----`;
+    const endMarker = `-----END ${keyType}-----`;
+    
+    // Extract base64 content
+    const base64Content = pemKey
+      .replace(beginMarker, '')
+      .replace(endMarker, '')
+      .replace(/\s+/g, '');
+    
+    // Convert to hex - using browser's atob instead of Buffer
+    const binaryString = atob(base64Content);
+    const derBytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      derBytes[i] = binaryString.charCodeAt(i);
+    }
+    const derHex = bytesToHex(derBytes);
+    
+    if (type === 'PUBLIC') {
+      // Check if it's our standard DER format with proper prefix
+      const standardPrefixIndex = derHex.indexOf('034200');
+      if (standardPrefixIndex !== -1) {
+        // Standard case: extract the 33-byte public key
+        const publicKeyStart = standardPrefixIndex + 6; // Skip to after the bit string indicator
+        return derHex.substring(publicKeyStart, publicKeyStart + 66); // 33 bytes = 66 hex chars
+      }
+      
+      // Handle raw 33-byte compressed key (starts with 02 or 03)
+      if (derBytes.length === 33 && (derBytes[0] === 0x02 || derBytes[0] === 0x03)) {
+        return derHex;
+      }
+      
+      // Handle raw 32-byte key (missing compression prefix) - add 02 prefix
+      if (derBytes.length === 32) {
+        return '02' + derHex;
+      }
+      
+      // Handle 65-byte uncompressed key (04 prefix) - convert to compressed
+      if (derBytes.length === 65 && derBytes[0] === 0x04) {
+        // Use only x coordinate and determine y parity for compression
+        const x = derHex.substring(2, 66); // Skip 04 prefix, take x coordinate
+        const y = derHex.substring(66, 130); // y coordinate
+        
+        // Determine if y is even (02) or odd (03) for compression
+        const yBigInt = BigInt('0x' + y);
+        const prefix = yBigInt % 2n === 0n ? '02' : '03';
+        
+        return prefix + x;
+      }
+      
+      // Fallback: return as-is if it looks like a valid key
+      if (derBytes.length >= 32 && derBytes.length <= 65) {
+        return derHex;
+      }
+      
+      throw new Error(`Unsupported public key format: ${derBytes.length} bytes`);
+    } else {
+      // Extract the actual private key from DER structure
+      // Look for the 32-byte private key after the DER prefix
+      const privateKeyStart = derHex.indexOf('0420') + 4; // Skip to after the octet string indicator
+      return derHex.substring(privateKeyStart, privateKeyStart + 64); // 32 bytes = 64 hex chars
+    }
+  }
+
+  static isPemFormat(key: string): boolean {
+    return key.includes('-----BEGIN') && key.includes('-----END');
+  }
 }

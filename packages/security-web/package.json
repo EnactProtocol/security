@@ -1,6 +1,6 @@
 {
   "name": "@enactprotocol/security-web",
-  "version": "0.2.0",
+  "version": "0.1.2",
   "description": "Frontend security library for signing enact documents",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +20,13 @@
   "devDependencies": {
     "typescript": "^5.0.0"
   },
-  "keywords": ["enact", "security", "signing", "cryptography", "frontend"],
+  "keywords": [
+    "enact",
+    "security",
+    "signing",
+    "cryptography",
+    "frontend"
+  ],
   "author": "Enact Protocol",
   "license": "MIT",
   "repository": {
