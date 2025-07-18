@@ -219,7 +219,7 @@ export class KeyManager {
       
       // Return all public key values from trusted keys directory
       return fs.readdirSync(this.TRUSTED_KEYS_DIR)
-        .filter(file => file.endsWith('-public.pem'))
+        .filter(file => file.endsWith('.pem'))
         .map(file => {
           try {
             const publicKeyPem = fs.readFileSync(path.join(this.TRUSTED_KEYS_DIR, file), 'utf8').trim();
