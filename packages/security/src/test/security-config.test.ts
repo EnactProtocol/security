@@ -1,6 +1,7 @@
 import { test, expect, beforeEach, afterEach } from 'bun:test';
 import { SigningService, CryptoUtils, DEFAULT_SECURITY_CONFIG } from '../index';
 import { KeyManager } from '../keyManager';
+import { SecurityConfigManager } from '../securityConfigManager';
 import type { EnactDocument, SecurityConfig, Signature } from '../types';
 import fs from 'fs';
 import path from 'path';
@@ -16,15 +17,25 @@ const testDocument: EnactDocument = {
 // Test directories
 const testTrustedKeysDir = path.join(os.tmpdir(), 'test-security-config-trusted-keys');
 const testPrivateKeysDir = path.join(os.tmpdir(), 'test-security-config-private-keys');
+const testHomeDir = path.join(os.tmpdir(), 'test-security-config-home');
+const testEnactDir = path.join(testHomeDir, '.enact');
+const testSecurityDir = path.join(testEnactDir, 'security');
+const testConfigFile = path.join(testSecurityDir, 'config.json');
 
 // Mock the storage paths for testing
 const originalTrustedKeysDir = (KeyManager as any).TRUSTED_KEYS_DIR;
 const originalPrivateKeysDir = (KeyManager as any).PRIVATE_KEYS_DIR;
+const originalEnactDir = (SecurityConfigManager as any).ENACT_DIR;
+const originalSecurityConfigDir = (SecurityConfigManager as any).SECURITY_DIR;
+const originalConfigFile = (SecurityConfigManager as any).CONFIG_FILE;
 
 beforeEach(() => {
   // Override the storage paths to use temp directories
   (KeyManager as any).TRUSTED_KEYS_DIR = testTrustedKeysDir;
   (KeyManager as any).PRIVATE_KEYS_DIR = testPrivateKeysDir;
+  (SecurityConfigManager as any).ENACT_DIR = testEnactDir;
+  (SecurityConfigManager as any).SECURITY_DIR = testSecurityDir;
+  (SecurityConfigManager as any).CONFIG_FILE = testConfigFile;
   
   // Clean up any existing test directories
   if (fs.existsSync(testTrustedKeysDir)) {
@@ -33,12 +44,21 @@ beforeEach(() => {
   if (fs.existsSync(testPrivateKeysDir)) {
     fs.rmSync(testPrivateKeysDir, { recursive: true, force: true });
   }
+  if (fs.existsSync(testHomeDir)) {
+    fs.rmSync(testHomeDir, { recursive: true, force: true });
+  }
+  
+  // Create test home directory
+  fs.mkdirSync(testHomeDir, { recursive: true });
 });
 
 afterEach(() => {
   // Restore original paths
   (KeyManager as any).TRUSTED_KEYS_DIR = originalTrustedKeysDir;
   (KeyManager as any).PRIVATE_KEYS_DIR = originalPrivateKeysDir;
+  (SecurityConfigManager as any).ENACT_DIR = originalEnactDir;
+  (SecurityConfigManager as any).SECURITY_DIR = originalSecurityConfigDir;
+  (SecurityConfigManager as any).CONFIG_FILE = originalConfigFile;
   
   // Clean up test directories
   if (fs.existsSync(testTrustedKeysDir)) {
@@ -46,6 +66,9 @@ afterEach(() => {
   }
   if (fs.existsSync(testPrivateKeysDir)) {
     fs.rmSync(testPrivateKeysDir, { recursive: true, force: true });
+  }
+  if (fs.existsSync(testHomeDir)) {
+    fs.rmSync(testHomeDir, { recursive: true, force: true });
   }
 });
 
@@ -243,6 +266,48 @@ test('Default config values are used when not specified', () => {
   );
   
   expect(isValid).toBe(true);
+});
+
+test('verifyDocument automatically loads config from ~/.enact/security', () => {
+  // Create a custom security config file
+  const customConfig: SecurityConfig = {
+    allowLocalUnsigned: false,
+    minimumSignatures: 2
+  };
+  SecurityConfigManager.saveConfig(customConfig);
+  
+  const keyPair1 = KeyManager.generateAndStoreKey('test-key-1', 'Test key 1');
+  const keyPair2 = KeyManager.generateAndStoreKey('test-key-2', 'Test key 2');
+  const signature1 = SigningService.signDocument(testDocument, keyPair1.privateKey, { useEnactDefaults: true });
+  const signature2 = SigningService.signDocument(testDocument, keyPair2.privateKey, { useEnactDefaults: true });
+  
+  const documentWithTwoSignatures: EnactDocument = {
+    ...testDocument,
+    signatures: [signature1, signature2]
+  };
+  
+  // Should automatically load config and require 2 signatures (passes)
+  const isValidWithTwoSigs = SigningService.verifyDocument(
+    documentWithTwoSignatures,
+    signature1,
+    { useEnactDefaults: true }
+    // No securityConfig parameter - should auto-load from file
+  );
+  expect(isValidWithTwoSigs).toBe(true);
+  
+  const documentWithOneSignature: EnactDocument = {
+    ...testDocument,
+    signatures: [signature1]
+  };
+  
+  // Should automatically load config and reject 1 signature (fails)
+  const isValidWithOneSig = SigningService.verifyDocument(
+    documentWithOneSignature,
+    signature1,
+    { useEnactDefaults: true }
+    // No securityConfig parameter - should auto-load from file
+  );
+  expect(isValidWithOneSig).toBe(false);
 });
 
 test('Partial config merges with defaults', () => {

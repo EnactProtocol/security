@@ -3,6 +3,7 @@ import { FieldSelector, EnactFieldSelector, GenericFieldSelector } from './field
 import type { EnactDocument, SigningOptions, Signature, SecurityConfig } from './types';
 import { DEFAULT_SECURITY_CONFIG } from './types';
 import { KeyManager } from './keyManager';
+import { SecurityConfigManager } from './securityConfigManager';
 
 export class SigningService {
   static signDocument(
@@ -45,7 +46,7 @@ export class SigningService {
     document: EnactDocument,
     signature: Signature,
     options: SigningOptions = {},
-    securityConfig: SecurityConfig = DEFAULT_SECURITY_CONFIG
+    securityConfig?: SecurityConfig
   ): boolean {
     const { 
       useEnactDefaults = false,
@@ -54,7 +55,9 @@ export class SigningService {
       additionalCriticalFields
     } = options;
     
-    const config = { ...DEFAULT_SECURITY_CONFIG, ...securityConfig };
+    // Load security config from ~/.enact/security if not provided
+    const loadedConfig = securityConfig ?? SecurityConfigManager.loadConfig();
+    const config = { ...DEFAULT_SECURITY_CONFIG, ...loadedConfig };
     
     // Get signatures from document or use provided signature
     const signatures = document.signatures || [signature];
