@@ -1,4 +1,4 @@
-# Deprecated, this package was moved into enact.
+# Deprecated, this package was moved into [enact](https://github.com/EnactProtocol/enact).
 # @enactprotocol/security
 
 [![npm version](https://badge.fury.io/js/@enactprotocol%2Fsecurity.svg)](https://www.npmjs.com/package/@enactprotocol/security)
